@@ -1,0 +1,313 @@
+# Sahil Abraham + sjabraha + M
+# partner: Akshat Jain + akshatj + H
+
+import random
+
+from tkinter import *
+
+#initial setup taken from tutorial
+
+def init(data):
+    # set board dimensions and margin
+    data.rows = 15
+    data.cols = 10
+    data.margin = 20
+    # make board
+    data.emptyColor = "blue"
+    data.board = [([data.emptyColor] * data.cols) for row in range(data.rows)]
+    # pre-load a few cells with known colors for testing purposes
+    data.tetrisPieces = [ [ [ True,  True,  True,  True] ],[[ True, False, False ],
+    [ True, True,  True]], [ [ False, False, True],
+    [ True,  True,  True]], [[ True, True],
+    [ True, True]], [[ False, True, True],
+    [ True,  True, False]], [[ False, True, False ],
+    [ True,  True, True]], [[ True,  True, False ],
+    [ False, True, True]] ]
+    data.tetrisPieceColors = [ "red", "yellow", "magenta",
+                               "pink", "cyan", "green", "orange" ]
+    newFallingPiece(data)
+    data.isGameOver=False
+    data.score=0
+# getCellBounds from grid-demo.py
+def getCellBounds(row, col, data):
+    # aka "modelToView"
+    # returns (x0, y0, x1, y1) corners/bounding box of given cell in grid
+    gridWidth  =  data.width - 2*data.margin
+    gridHeight = data.height - 2*data.margin
+    x0 = data.margin + gridWidth * col / data.cols
+    x1 = data.margin + gridWidth * (col+1) / data.cols
+    y0 = data.margin + gridHeight * row / data.rows
+    y1 = data.margin + gridHeight * (row+1) / data.rows
+    return (x0, y0, x1, y1)
+
+def mousePressed(event, data):
+    pass
+
+def keyPressed(event, data):
+    #different funtions the fallingPiece has
+    if event.keysym=="Up":rotateFallingPiece(data)
+    if event.keysym=="Down":moveFallingPiece(data,+1,0)
+    if event.keysym=="Right":moveFallingPiece(data,0,+1)
+    if event.keysym=="Left":moveFallingPiece(data,0,-1)
+    #initializing data restarts it
+    if event.keysym=="r": init(data)
+
+def timerFired(data):
+    #check if it cant move down anymore and replace the board
+    if not(moveFallingPiece(data,+1,0)):
+        placeFallingPiece(data)
+        newFallingPiece(data)
+        #if a piece is illegal as soon as its made
+        if fallingPieceIsLegal(data)==False:
+            data.isGameOver=True
+    removeFullRows(data)
+
+def drawGame(canvas, data):
+    canvas.create_rectangle(0, 0, data.width, data.height, fill="orange")
+    drawBoard(canvas, data)
+
+def drawBoard(canvas, data):
+    # draw grid of cells
+    for row in range(data.rows):
+        for col in range(data.cols):
+            drawCell(canvas, data, row, col,data.board[row][col])
+
+def drawCell(canvas, data, row, col, color):
+    (x0, y0, x1, y1) = getCellBounds(row, col, data)
+    m = 1 # cell outline margin
+    canvas.create_rectangle(x0, y0, x1, y1, fill="black")
+    canvas.create_rectangle(x0+m, y0+m, x1-m, y1-m, fill=color)
+
+def fallingPieceIsLegal(data):
+    row=0
+    col=0
+    for i in range(len(data.fallingPiece)):
+        for j in range(len(data.fallingPiece[i])):
+            if data.fallingPiece[i][j]==True:
+                row=i+data.fallingPieceRow
+                col=j+data.fallingPieceCol
+                #once the move has been made check whether it goes of the board
+                #or intersects a non blue piece
+                if (row<0) or (row>=data.rows) or col<0 or col>=data.cols\
+                   or data.board[row][col]!="blue":
+                    return False
+    return True
+
+
+def removeCol(L,Col):
+    result=[]
+    listRow=[]
+    for i in  range(len(L)):
+        #append the ith element in each list
+        listRow.append(L[i][Col])
+    result.append(listRow)
+    return result
+    
+
+def rotateAntiClockwise(L):
+    result=[]
+    for i in range(len(L[0])):
+        #remove each column of the list
+        result+=removeCol(L,len(L[0])-i-1)
+    return result
+
+
+def rotateFallingPiece(data):
+    oldFallingPiece=data.fallingPiece
+    oldRow=data.fallingPieceRow
+    oldCol=data.fallingPieceCol
+    oldRows=len(data.fallingPiece)
+    oldCols=len(data.fallingPiece[0])
+    data.fallingPiece=rotateAntiClockwise(oldFallingPiece)    
+    newRows=len(data.fallingPiece)
+    newCols=len(data.fallingPiece[0])
+    #center the piece
+    data.fallingPieceCol=oldCol + oldCols//2 - newCols//2
+    data.fallingPieceRow =oldRow + oldRows//2  - newRows//2
+    #check if the new move is illegal
+    if fallingPieceIsLegal(data)==False:
+        data.fallingPiece=oldFallingPiece
+        data.fallingPieceRow=oldRow
+        data.fallingPieceCol=oldCol
+                    
+def moveFallingPiece(data, drow, dcol):
+    oldFallingPieceRow=data.fallingPieceRow
+    oldFallingPieceCol=data.fallingPieceCol
+    data.fallingPieceRow=data.fallingPieceRow+drow
+    data.fallingPieceCol=data.fallingPieceCol + dcol
+    #see if in any move that made is illegal
+    if fallingPieceIsLegal(data)==False:
+        data.fallingPieceRow=data.fallingPieceRow-drow
+        data.fallingPieceCol=data.fallingPieceCol - dcol
+        return False
+    return True
+
+def placeFallingPiece(data):
+    for i in range(len(data.fallingPiece)):
+        for j in range(len(data.fallingPiece[0])):
+            if data.fallingPiece[i][j]==True:
+                #replace the blue with the piece color
+                row=data.fallingPieceRow+i
+                col= data.fallingPieceCol + j
+                color=data.fallingPieceColor
+                data.board[row][col]=color
+
+def fullRow(oldRow,data):
+    for i in range(len(data.board[oldRow])):
+        #check if any part of the row isnt filled
+        if data.board[oldRow][i]=="blue":
+            return False
+    return True
+
+def makeNewRow(data,newRow,oldRow):
+    for i in range(len(data.board[oldRow])):
+        #make the new row the old row
+        data.board[newRow][i]=data.board[oldRow][i]
+
+def drawScore(canvas,data):
+    #keeps score
+    canvas.create_text(55,11, text="score=%r" %data.score)
+    
+def removeFullRows(data):
+    fullRows=0
+    newRow=len(data.board)-1
+    #iterate between each oldRow
+    for oldRow in range(len(data.board)-1,-1,-1):
+        if fullRow(oldRow,data)==False:
+            makeNewRow(data,newRow,oldRow)
+            newRow-=1
+        else:
+            fullRows+=1
+    #if more than one row is removed square the number removed
+    data.score+= fullRows**2
+    
+    
+def newFallingPiece(data):
+    data.fallingPiece= random.choice(data.tetrisPieces)
+    data.fallingPieceColor=random.choice(data.tetrisPieceColors)
+    data.fallingPieceRow= 0
+    #center the piece
+    data.fallingPieceCol = (data.cols//2) - (len(data.fallingPiece[0])//2)
+
+def drawFallingPiece(canvas,data):
+    for i in range(len(data.fallingPiece)):
+        for j in range(len(data.fallingPiece[i])):
+            if data.fallingPiece[i][j]==True:
+                #draw the parts of the piece that are blue
+                row=data.fallingPieceRow+i
+                col= data.fallingPieceCol + j
+                color=data.fallingPieceColor
+                drawCell(canvas,data,row,col,color)       
+
+def redrawAll(canvas, data):
+    #as long as game isnt over keep on redrawing it
+    if (data.isGameOver==False):
+        drawGame(canvas, data)
+        drawFallingPiece(canvas,data)
+        drawScore(canvas,data)
+    else:
+        canvas.create_text(data.width/2,data.height/2-40,text="Game Over")
+        canvas.create_text(data.width/2,data.height/2,text="Press r to restart")
+
+def testFallingPieceIsLegal():
+    print("Testing fallingPieceIsLegal..", end="")
+    data=Struct()
+    data.fallingPieceRow=11
+    fallingPieceIsLegal(data)
+    assert(fallingPieceIsLegal(data)==False)
+    print("Passed")
+    
+    
+def testRotateFallingPiece():
+    print("Testing rotateFallingPiece...", end="")
+    data=Struct()
+    data.fallingPiece= [["blue","blue"],["blue","blue"]]
+    rotateFallingPiece(data)
+    assert(rotateFallingPiece(data)==[["blue","blue"],["blue","blue"]])
+    print("Passed")
+
+def testFullRows():
+    data = Struct() 
+    data.fallingPiece = [["blue","blue","blue"]]
+    #define the rest of fields in the stuct as needed by the function you're testing
+    fullRow(0,data)
+    assert(fullRow(0,data)==False)
+    print("Passed")
+ 
+
+def testRotateAntiClockwise():
+    print ("Testing rotateAntiClockwise()...", end="")
+    assert (rotateAntiClockwise([[1,2,3],
+                                            [4,5,6]])==[[3,6],[2,5],[1,4]])
+    assert(rotateAntiClockwise([[1,2],[3,4]])==[[2,4],[1,3]])
+    assert(rotateAntiClockwise([[3,6],[2,5],[1,4]])==[[6,5,4],[3,2,1]])
+    print("Passed!")
+
+def testRemoveCol():
+    print("Testing removeCol ..." ,end="")
+    assert(removeCol([[1,2],[3,4],[5,6]],1)==[[2,4,6]])
+    assert(removeCol([[1,2],[3,4],[5,6]],0)==[[1,3,5]])
+    assert(removeCol([[1,2,3],[4,5,6]],2)==[[3,6]])
+    print("Passed!")
+
+
+####################################
+# use the run function as-is
+####################################
+
+def run(width=500, height=500):
+    def redrawAllWrapper(canvas, data):
+        canvas.delete(ALL)
+        redrawAll(canvas, data)
+        canvas.update()    
+
+    def mousePressedWrapper(event, canvas, data):
+        mousePressed(event, data)
+        redrawAllWrapper(canvas, data)
+
+    def keyPressedWrapper(event, canvas, data):
+        keyPressed(event, data)
+        redrawAllWrapper(canvas, data)
+
+    def timerFiredWrapper(canvas, data):
+        timerFired(data)
+        redrawAllWrapper(canvas, data)
+        # pause, then call timerFired again
+        canvas.after(data.timerDelay, timerFiredWrapper, canvas, data)
+    # Set up data and call init
+    class Struct(object): pass
+    data = Struct()
+    data.width = width
+    data.height = height
+    data.timerDelay = 300 # milliseconds
+    init(data)
+    # create the root and the canvas
+    root = Tk()
+    canvas = Canvas(root, width=data.width, height=data.height)
+    canvas.pack()
+    # set up events
+    root.bind("<Button-1>", lambda event:
+                            mousePressedWrapper(event, canvas, data))
+    root.bind("<Key>", lambda event:
+                            keyPressedWrapper(event, canvas, data))
+    timerFiredWrapper(canvas, data)
+    # and launch the app
+    root.mainloop()  # blocks until window is closed
+    print("bye!")
+
+# run(300, 300)
+
+####################################
+# playTetris() [calls run()]
+####################################
+
+def playTetris():
+    rows = 15
+    cols = 10
+    margin = 20 # margin around grid
+    cellSize = 20 # width and height of each cell
+    width = 2*margin + cols*cellSize
+    height = 2*margin + rows*cellSize
+    run(width, height)
+
+playTetris()
